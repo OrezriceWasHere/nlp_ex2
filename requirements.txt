@@ -1,0 +1,7 @@
+torch; sys_platform == 'darwin'
+
+--find-links https://download.pytorch.org/whl/torch_stable.html
+torch==2.0.0+cu118; sys_platform == 'linux' or sys_platform == 'windows'
+
+numpy
+pandas
