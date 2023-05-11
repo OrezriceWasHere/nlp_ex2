@@ -5,3 +5,6 @@ torch==2.0.0+cu118; sys_platform == 'linux' or sys_platform == 'windows'
 
 numpy
 pandas
+tqdm
+scikit-learn
+matplotlib
