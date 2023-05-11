@@ -1,8 +1,11 @@
 import torch
 from tqdm import tqdm
+
+from data.word_embedder_tagger_dataset import WordEmbedderTaggerDataset
 from hyper_parameters import *
 from data.word_tagger_dataset import WordTaggerDataset
 from sequence_tagger_network import SequenceTaggerNetwork
+from sequence_tagger_with_embedding_network import SequenceTaggerWithEmbeddingNetwork
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from matplotlib import pyplot as plt
 
@@ -22,11 +25,13 @@ def train(train_loader, test_loader, model, criterion):
         for text, label in (pbar := tqdm(train_loader)):
             pbar.set_description(f"Training epoch {epoch}")
             model.train()
+
             text = text.to(DEVICE)
             label = label.to(DEVICE)
-            optimizer.zero_grad()
+
             output = model(text)
             loss = criterion(output, label)
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             batch_loss = loss.item()
@@ -59,13 +64,15 @@ def train(train_loader, test_loader, model, criterion):
         print("test results: ")
         print(f'Test Loss: {total_loss_test / len(test_loader): .3f}')
         print(classification_report(truths, predictions, target_names=list(NER_CLASS_TO_INDEX.keys())))
-        matrix = confusion_matrix(truths, predictions)
-        cm_display = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=list(NER_CLASS_TO_INDEX.keys()))
-        cm_display.plot()
-        plt.show()
+        if epoch % 20 == 0:
+            matrix = confusion_matrix(truths, predictions)
+            cm_display = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=list(NER_CLASS_TO_INDEX.keys()))
+            cm_display.plot()
+            plt.show()
 
 if __name__ == "__main__":
     ner_train_file_path = "data/ner/train"
+    ner_test_file_path = "data/ner/dev"
 
     # Load word embeddings
     word_to_embedding_dict = {}
@@ -74,13 +81,18 @@ if __name__ == "__main__":
             word_to_embedding_dict[word.rstrip()] = [float(x) for x in embedding.rstrip().split(" ")]
 
     # Preprare dataset
-    train_dataset = WordTaggerDataset(ner_train_file_path, word_to_embedding_dict, NER_CLASS_TO_INDEX)
-    test_dataset = WordTaggerDataset(ner_train_file_path, word_to_embedding_dict, NER_CLASS_TO_INDEX)
+    # train_dataset = WordTaggerDataset(ner_train_file_path, word_to_embedding_dict, NER_CLASS_TO_INDEX)
+    # test_dataset = WordTaggerDataset(ner_train_file_path, word_to_embedding_dict, NER_CLASS_TO_INDEX)
+    train_dataset = WordEmbedderTaggerDataset(ner_train_file_path, NER_CLASS_TO_INDEX)
+    word_to_index = train_dataset.word_to_index
+    test_dataset = WordEmbedderTaggerDataset(ner_test_file_path, NER_CLASS_TO_INDEX,
+                                             word_to_index=word_to_index,
+                                             prob_replace_to_no_word=0.0)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
     # Prepare model
-    model = SequenceTaggerNetwork(NER_LAYERS)
+    model = SequenceTaggerWithEmbeddingNetwork(len(train_dataset.word_to_index), NER_LAYERS)
     model = model.to(DEVICE)
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
