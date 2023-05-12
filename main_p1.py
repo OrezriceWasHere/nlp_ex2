@@ -1,10 +1,6 @@
-import torch
 from tqdm import tqdm
-
 from data.word_embedder_tagger_dataset import WordEmbedderTaggerDataset
 from hyper_parameters import *
-from data.word_tagger_dataset import WordTaggerDataset
-from sequence_tagger_network import SequenceTaggerNetwork
 from sequence_tagger_with_embedding_network import SequenceTaggerWithEmbeddingNetwork
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from matplotlib import pyplot as plt
@@ -70,6 +66,7 @@ def train(train_loader, test_loader, model, criterion):
             cm_display.plot()
             plt.show()
 
+
 if __name__ == "__main__":
     ner_train_file_path = "data/ner/train"
     ner_test_file_path = "data/ner/dev"
@@ -96,6 +93,5 @@ if __name__ == "__main__":
     model = model.to(DEVICE)
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
-
 
     train(train_loader, test_loader, model, criterion)
