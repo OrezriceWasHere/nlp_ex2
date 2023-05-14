@@ -3,6 +3,7 @@ from hyper_parameters import *
 from trainer import train
 from data.word_embedder_tagger_dataset import WordEmbedderTaggerDataset
 from sequence_tagger_with_embedding_network import SequenceTaggerWithEmbeddingNetwork
+import sys
 
 
 def create_index_to_embedding_dict(word_to_index, word_to_embedding) -> dict:
@@ -14,8 +15,8 @@ def create_index_to_embedding_dict(word_to_index, word_to_embedding) -> dict:
 
 
 if __name__ == "__main__":
-    ner_train_file_path = "data/ner/train"
-    ner_test_file_path = "data/ner/dev"
+    ner_train_file_path = f"data/{sys.argv[1]}/train"
+    ner_test_file_path = f"data/{sys.argv[1]}/dev"
 
     # Load word embeddings
     word_to_embedding_dict = {}

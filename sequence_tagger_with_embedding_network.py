@@ -26,12 +26,17 @@ class SequenceTaggerWithEmbeddingNetwork(torch.nn.Module):
             return torch.nn.Embedding.from_pretrained(embedding_matrix)
 
     def __prepare_network_layers(self, dropout, network_structure):
-        layers = [torch.nn.Dropout(dropout)]
-        for pre_index, post_index in zip(network_structure, network_structure[1:]):
+        inner = network_structure[1:-1]
+
+        layers = [torch.nn.Dropout(dropout), torch.nn.Linear(network_structure[0], network_structure[1]),
+                  torch.nn.Tanh()]
+
+        for pre_index, post_index in zip(inner, inner[1:]):
+            layers.append(torch.nn.Dropout(dropout))
             layers.append(torch.nn.Linear(pre_index, post_index))
-            layers.append(torch.nn.Tanh())
-        layers.pop()
-        layers.append(torch.nn.Softmax(dim=1))
+            layers.append(torch.nn.LeakyReLU())
+
+        layers.extend([torch.nn.Linear(network_structure[-2], network_structure[-1]), torch.nn.Softmax(dim=1)])
         return layers
 
     def forward(self, x):

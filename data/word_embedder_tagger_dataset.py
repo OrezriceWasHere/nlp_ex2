@@ -47,20 +47,24 @@ class WordEmbedderTaggerDataset(torch.utils.data.Dataset):
         self.word_to_index = word_to_index or dataset_helpers.word_to_index_dict(tagged_file)
         self.tag_to_index = tag_to_index
 
-        texts_labels_generator = dataset_helpers.generate_texts_labels(tagged_file,
-                                                              self.word_to_index,
-                                                              self.tag_to_index,
-                                                              prob_replace_to_no_word)
+        self.dont_include = []
 
-        self.texts, self.labels = [], []
+        texts_labels_generator = dataset_helpers.generate_texts_labels(tagged_file,
+                                                                       self.word_to_index,
+                                                                       self.tag_to_index,
+                                                                       self.dont_include,
+                                                                       prob_replace_to_no_word)
+
+        texts, labels = [], []
         for text, label in texts_labels_generator:
-            self.texts.append(text)
-            self.labels.append(label)
+            texts.append(text)
+            labels.append(label)
+
+        self.texts = torch.tensor(texts, dtype=torch.int).to(DEVICE)
+        self.labels = torch.tensor(labels, dtype=torch.long).to(DEVICE)
 
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, idx):
-        text = torch.tensor(self.texts[idx], dtype=torch.int)
-        label = torch.tensor(self.labels[idx], dtype=torch.long)
-        return text, label
+        return self.texts[idx], self.labels[idx]

@@ -11,6 +11,7 @@ def most_similar(word, k) -> np.ndarray:
     similarities = np.array([similarty(word_vec, vec) for vec in vecs])
     return (np.argsort(similarities)[::-1][:k + 1])[1:]
 
+
 if __name__ == "__main__":
     vecs = np.loadtxt("data/embedding/wordVectors.txt", dtype=float)
     words = np.loadtxt("data/embedding/vocab.txt", dtype=str)
