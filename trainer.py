@@ -4,7 +4,7 @@ from sklearn.metrics import classification_report, confusion_matrix, ConfusionMa
 from matplotlib import pyplot as plt
 
 
-def train(train_loader, test_loader, model, criterion, optimizer, ignore_first=False):
+def train(train_loader, test_loader, model, criterion, optimizer, name, ignore_first=False):
     # Prepare training
 
     loss_per_epoch = []
@@ -23,7 +23,9 @@ def train(train_loader, test_loader, model, criterion, optimizer, ignore_first=F
         for text, label in (pbar := tqdm(train_loader)):
             pbar.set_description(f"Training epoch {epoch}")
 
+            #input(":(")
             output = model(text)
+            #input()
             loss = criterion(output, label)
             optimizer.zero_grad()
             loss.backward()
@@ -42,24 +44,25 @@ def train(train_loader, test_loader, model, criterion, optimizer, ignore_first=F
         total_loss_test = 0
 
         print("\n----------------")
-        print("test: ")
+        print("Test: ")
 
         with torch.no_grad():
             model.eval()
-        for text, label in (pbar := tqdm(test_loader)):
-            pbar.set_description(f"Evaluation epoch {epoch}")
-            output = model(text)
-            loss = criterion(output, label)
-            batch_loss = loss.item()
-            total_loss_test += batch_loss
-            predictions.extend(output.argmax(dim=1).tolist())
-            truths.extend(label.tolist())
+            for text, label in (pbar := tqdm(test_loader)):
+                pbar.set_description(f"Evaluation epoch {epoch}")
+                output = model(text)
+                loss = criterion(output, label)
+                batch_loss = loss.item()
+                total_loss_test += batch_loss
+                predictions.extend(output.argmax(dim=1).tolist())
+                truths.extend(label.tolist())
 
         print(f'Test Loss: {total_loss_test / len(test_loader): .3f}')
         loss_per_epoch.append(total_loss_test / len(test_loader))
         accuracy_per_epoch.append(
             len([0 for t, p in zip(truths, predictions) if t == p]) / len(truths) if not ignore_first else
             len([0 for t, p in zip(truths, predictions) if t == p and t != 0]) / len([0 for t in truths if t != 0]))
+        print(f'Test accuracy: {accuracy_per_epoch[-1]}')
 
         # print(classification_report(truths, predictions, target_names=list(NER_CLASS_TO_INDEX.keys())))
 
@@ -70,7 +73,7 @@ def train(train_loader, test_loader, model, criterion, optimizer, ignore_first=F
         #     plt.show()
 
     plt.plot(loss_per_epoch)
-    plt.show()
+    plt.savefig(name + '_loss.png')
 
     plt.plot(accuracy_per_epoch)
-    plt.show()
+    plt.savefig(name + '_accuracy.png')

@@ -7,13 +7,12 @@ class SequenceTaggerWithEmbeddingNetwork(torch.nn.Module):
     def __init__(self,
                  count_distinct_words,
                  network_structure,
-                 dropout=DROPOUT,
                  index_to_embedding=None
                  ):
-        super(SequenceTaggerWithEmbeddingNetwork, self).__init__()
+        super().__init__()
         self.network_structure = network_structure
         self.embedding = self.__create_embedding_layer(count_distinct_words, EMBEDDING_SIZE, index_to_embedding)
-        layers = self.__prepare_network_layers(dropout, network_structure)
+        layers = self.__prepare_network_layers(DROPOUT, network_structure)
         self.net = torch.nn.Sequential(*layers)
 
     def __create_embedding_layer(self, distinct_words, embedding_size, index_to_embedding_dict):
@@ -39,6 +38,21 @@ class SequenceTaggerWithEmbeddingNetwork(torch.nn.Module):
         layers.extend([torch.nn.Linear(network_structure[-2], network_structure[-1]), torch.nn.Softmax(dim=1)])
         return layers
 
+    def embed(self, x):
+        return self.embedding(x).view(-1, WINDOW * EMBEDDING_SIZE)
+
     def forward(self, x):
-        x = self.embedding(x).view(-1, WINDOW * EMBEDDING_SIZE)
+        x = self.embed(x)
         return self.net(x)
+
+
+class WithPresufEmbedding(SequenceTaggerWithEmbeddingNetwork):
+    def __init__(self, pre, suf, *args):
+        super().__init__(*args)
+        self.pre_embedding = torch.nn.Embedding(pre, EMBEDDING_SIZE)
+        self.suf_embedding = torch.nn.Embedding(suf, EMBEDDING_SIZE)
+
+    def embed(self, x):
+        return super().embed(x[:, 0, :]) + \
+               self.pre_embedding(x[:, 1, :]).view(-1, WINDOW * EMBEDDING_SIZE) + \
+               self.suf_embedding(x[:, 2, :]).view(-1, WINDOW * EMBEDDING_SIZE)

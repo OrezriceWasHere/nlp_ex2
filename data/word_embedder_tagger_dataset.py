@@ -1,5 +1,6 @@
 from hyper_parameters import *
 from data import dataset_helpers
+import torch
 
 
 class WordEmbedderTaggerDataset(torch.utils.data.Dataset):
@@ -43,24 +44,47 @@ class WordEmbedderTaggerDataset(torch.utils.data.Dataset):
     The words are embedded according to the word_to_embedding_dict.
     """
 
-    def __init__(self, tagged_file, tag_to_index, word_to_index=None, prob_replace_to_no_word=PROB_UNQ):
-        self.word_to_index = word_to_index or dataset_helpers.word_to_index_dict(tagged_file)
+    def __init__(self, presuf, tagged_file, tag_to_index, word_to_index=None, pre_to_index=None, suf_to_index=None,
+                 prob_replace_to_no_word=PROB_UNQ):
+        self.word_to_index, self.pre_to_index, self.suf_to_index = \
+            (word_to_index, pre_to_index,
+             suf_to_index) if (word_to_index is not None) else dataset_helpers.word_to_index_dict(tagged_file)
+
+        self.no_word = self.word_to_index[NO_WORD]
+        self.no_pre = self.pre_to_index[NO_WORD]
+        self.no_suf = self.suf_to_index[NO_WORD]
         self.tag_to_index = tag_to_index
 
         self.dont_include = []
 
-        texts_labels_generator = dataset_helpers.generate_texts_labels(tagged_file,
-                                                                       self.word_to_index,
-                                                                       self.tag_to_index,
-                                                                       self.dont_include,
-                                                                       prob_replace_to_no_word)
+        texts_labels = list(dataset_helpers.generate_texts_labels(tagged_file,
+                                                                  self.word_to_index,
+                                                                  self.pre_to_index,
+                                                                  self.suf_to_index,
+                                                                  self.tag_to_index,
+                                                                  self.dont_include,
+                                                                  True))
 
         texts, labels = [], []
-        for text, label in texts_labels_generator:
-            texts.append(text)
-            labels.append(label)
+
+        for _ in range(AUGMENTATION_COUNT):
+            for text, pre, suf, label in texts_labels:
+                for i in range(len(text)):
+                    if text[i] > 2 and torch.rand(1) < prob_replace_to_no_word:
+                        text[i] = self.no_word
+                        if torch.rand(1) < 0.15:
+                            pre[i] = self.no_pre
+                        if torch.rand(1) < 0.15:
+                            suf[i] = self.no_suf
+
+                if presuf:
+                    texts.append((text, pre, suf))
+                else:
+                    texts.append(text)
+                labels.append(label)
 
         self.texts = torch.tensor(texts, dtype=torch.int).to(DEVICE)
+
         self.labels = torch.tensor(labels, dtype=torch.long).to(DEVICE)
 
     def __len__(self):
