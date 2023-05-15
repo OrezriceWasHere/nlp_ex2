@@ -17,6 +17,6 @@ POS_LAYERS = [EMBEDDING_SIZE * WINDOW, 500, len(POS_CLASS_TO_INDEX)]
 EPOCHS = 150
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 64 if DEVICE == torch.device("cuda:0") else 8
-PROB_UNQ = 0.05
+PROB_UNQ = 0.07
 DROPOUT = 0.3
 AUGMENTATION_COUNT = 3
