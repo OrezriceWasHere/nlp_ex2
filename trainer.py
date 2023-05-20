@@ -24,7 +24,7 @@ def train(train_loader, test_loader, model, criterion, optimizer, name, ignore_f
             pbar.set_description(f"Training epoch {epoch}")
 
             #input(":(")
-            output = model(text)
+            output = model(*text)
             #input()
             loss = criterion(output, label)
             optimizer.zero_grad()
@@ -50,7 +50,7 @@ def train(train_loader, test_loader, model, criterion, optimizer, name, ignore_f
             model.eval()
             for text, label in (pbar := tqdm(test_loader)):
                 pbar.set_description(f"Evaluation epoch {epoch}")
-                output = model(text)
+                output = model(*text)
                 loss = criterion(output, label)
                 batch_loss = loss.item()
                 total_loss_test += batch_loss

@@ -19,4 +19,11 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 64 if DEVICE == torch.device("cuda:0") else 8
 PROB_UNQ = 0.07
 DROPOUT = 0.3
-AUGMENTATION_COUNT = 3
+AUGMENTATION_COUNT = 1
+CHARACTER_EMBEDDING_SIZE = 30
+MAX_CHARACTERS = 15  # helps as padding for the CNN too!
+FILTERS_NUMBER = 30
+FILTERS_SIZE = 3
+
+CHAR_NER_LAYERS = [EMBEDDING_SIZE * WINDOW + (CHARACTER_EMBEDDING_SIZE - (FILTERS_SIZE - 1)) * FILTERS_NUMBER, 500,
+                   len(NER_CLASS_TO_INDEX)]

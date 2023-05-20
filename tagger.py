@@ -20,14 +20,25 @@ def create_index_to_embedding_dict(word_to_index, word_to_embedding) -> dict:
 
 if __name__ == "__main__":
     presuf = False
+    chars = True
 
     task = sys.argv[1].lower()
 
     train_file_path = f"data/{task}/train"
     test_file_path = f"data/{task}/dev"
 
-    class_to_index, layers = (NER_CLASS_TO_INDEX, NER_LAYERS) if task == 'ner' else (POS_CLASS_TO_INDEX, POS_LAYERS)
-    ignore_first = task == 'ner'
+    class_to_index = NER_CLASS_TO_INDEX if task == 'ner' else POS_CLASS_TO_INDEX
+
+    if task == 'ner' and chars:
+        layers = CHAR_NER_LAYERS
+    elif task == 'ner':
+        layers = NER_LAYERS
+    elif chars:
+        layers = CHAR_POS_LAYERS
+    else:
+        layers = POS_LAYERS
+
+    ignore_first = False  # task == 'ner'
 
     # Load word embeddings
     word_to_embedding_dict = {}
@@ -36,9 +47,10 @@ if __name__ == "__main__":
             word_to_embedding_dict[word.rstrip()] = [float(x) for x in embedding.rstrip().split(" ")]
 
     # Prepare dataset
-    train_dataset = WordEmbedderTaggerDataset(presuf, train_file_path, class_to_index)
-    test_dataset = WordEmbedderTaggerDataset(presuf, test_file_path, class_to_index, train_dataset.word_to_index,
+    train_dataset = WordEmbedderTaggerDataset(presuf, chars, train_file_path, class_to_index)
+    test_dataset = WordEmbedderTaggerDataset(presuf, chars, test_file_path, class_to_index, train_dataset.word_to_index,
                                              train_dataset.pre_to_index, train_dataset.suf_to_index,
+                                             train_dataset.char_to_index,
                                              prob_replace_to_no_word=0.0)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE)
@@ -54,9 +66,13 @@ if __name__ == "__main__":
     if presuf:
         model = WithPresufEmbedding(len(train_dataset.pre_to_index), len(train_dataset.suf_to_index),
                                     len(train_dataset.word_to_index), layers, index_to_embedding_dict)
+    elif chars:
+        model = WithCharacterEmbedding(len(train_dataset.char_to_index), len(train_dataset.word_to_index), layers,
+                                       index_to_embedding_dict)
     else:
         model = SequenceTaggerWithEmbeddingNetwork(len(train_dataset.word_to_index), layers,
-                                                   index_to_embedding=index_to_embedding_dict)
+                                                   index_to_embedding_dict)
+
     model = model.to(DEVICE)
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters())
@@ -65,7 +81,8 @@ if __name__ == "__main__":
 
     texts = list(
         generate_texts_labels(f"data/{task}/test", train_dataset.word_to_index, train_dataset.pre_to_index,
-                              train_dataset.suf_to_index, None, train_dataset.dont_include, False, presuf))
+                              train_dataset.suf_to_index, train_dataset.char_to_index, None, train_dataset.dont_include,
+                              False, presuf, chars))
     test_texts = torch.tensor(texts, dtype=torch.int).to(DEVICE)
 
     index_to_class = {v: k for k, v in class_to_index.items()}

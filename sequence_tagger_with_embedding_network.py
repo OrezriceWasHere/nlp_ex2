@@ -38,11 +38,11 @@ class SequenceTaggerWithEmbeddingNetwork(torch.nn.Module):
         layers.extend([torch.nn.Linear(network_structure[-2], network_structure[-1]), torch.nn.Softmax(dim=1)])
         return layers
 
-    def embed(self, x):
-        return self.embedding(x).view(-1, WINDOW * EMBEDDING_SIZE)
+    def embed(self, *x):
+        return self.embedding(*x).view(-1, WINDOW * EMBEDDING_SIZE)
 
-    def forward(self, x):
-        x = self.embed(x)
+    def forward(self, *x):
+        x = self.embed(*x)
         return self.net(x)
 
 
@@ -56,3 +56,22 @@ class WithPresufEmbedding(SequenceTaggerWithEmbeddingNetwork):
         return super().embed(x[:, 0, :]) + \
                self.pre_embedding(x[:, 1, :]).view(-1, WINDOW * EMBEDDING_SIZE) + \
                self.suf_embedding(x[:, 2, :]).view(-1, WINDOW * EMBEDDING_SIZE)
+
+
+class WithCharacterEmbedding(SequenceTaggerWithEmbeddingNetwork):
+    def __init__(self, characters_number, *args):
+        super().__init__(*args)
+        self.char_embedding = torch.nn.Embedding(characters_number, CHARACTER_EMBEDDING_SIZE)
+        self.conv = torch.nn.Sequential(torch.nn.Dropout(0.5), torch.nn.Conv2d(WINDOW, FILTERS_NUMBER, FILTERS_SIZE),
+                                        torch.nn.MaxPool2d(kernel_size=(MAX_CHARACTERS - (FILTERS_SIZE - 1), 1),
+                                                           stride=(MAX_CHARACTERS - (FILTERS_SIZE - 1), 1))
+                                        )
+
+    def embed(self, words, characters):
+        embedded = self.char_embedding(characters)
+        conved = self.conv(embedded)
+        reshaped = conved.view(conved.size(0), conved.size(1) * conved.size(2) * conved.size(3))
+        return torch.cat((super().embed(words), reshaped), 1)
+
+    def embed_characters(self, x):
+        self.char_embedding(x)

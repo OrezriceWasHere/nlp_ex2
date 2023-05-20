@@ -44,11 +44,12 @@ class WordEmbedderTaggerDataset(torch.utils.data.Dataset):
     The words are embedded according to the word_to_embedding_dict.
     """
 
-    def __init__(self, presuf, tagged_file, tag_to_index, word_to_index=None, pre_to_index=None, suf_to_index=None,
-                 prob_replace_to_no_word=PROB_UNQ):
-        self.word_to_index, self.pre_to_index, self.suf_to_index = \
+    def __init__(self, presuf, with_chars, tagged_file, tag_to_index, word_to_index=None, pre_to_index=None, suf_to_index=None,
+                 char_to_index=None, prob_replace_to_no_word=PROB_UNQ):
+        self.word_to_index, self.pre_to_index, self.suf_to_index, self.char_to_index = \
             (word_to_index, pre_to_index,
-             suf_to_index) if (word_to_index is not None) else dataset_helpers.word_to_index_dict(tagged_file)
+             suf_to_index, char_to_index) if (word_to_index is not None) else dataset_helpers.word_to_index_dict(
+                tagged_file)
 
         self.no_word = self.word_to_index[NO_WORD]
         self.no_pre = self.pre_to_index[NO_WORD]
@@ -56,19 +57,22 @@ class WordEmbedderTaggerDataset(torch.utils.data.Dataset):
         self.tag_to_index = tag_to_index
 
         self.dont_include = []
+        self.with_chars = with_chars
 
         texts_labels = list(dataset_helpers.generate_texts_labels(tagged_file,
                                                                   self.word_to_index,
                                                                   self.pre_to_index,
                                                                   self.suf_to_index,
+                                                                  self.char_to_index,
                                                                   self.tag_to_index,
                                                                   self.dont_include,
                                                                   True))
 
         texts, labels = [], []
+        chars = []
 
         for _ in range(AUGMENTATION_COUNT):
-            for text, pre, suf, label in texts_labels:
+            for text, pre, suf, cha, label in texts_labels:
                 for i in range(len(text)):
                     if text[i] > 2 and torch.rand(1) < prob_replace_to_no_word:
                         text[i] = self.no_word
@@ -82,13 +86,17 @@ class WordEmbedderTaggerDataset(torch.utils.data.Dataset):
                 else:
                     texts.append(text)
                 labels.append(label)
+                chars.append(cha)
 
         self.texts = torch.tensor(texts, dtype=torch.int).to(DEVICE)
-
+        self.chars = torch.tensor(chars, dtype=torch.int).to(DEVICE)
         self.labels = torch.tensor(labels, dtype=torch.long).to(DEVICE)
 
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, idx):
-        return self.texts[idx], self.labels[idx]
+        if self.with_chars:
+            return (self.texts[idx], self.chars[idx]), self.labels[idx]
+
+        return (self.texts[idx],), self.labels[idx]
