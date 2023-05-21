@@ -7,6 +7,8 @@ import torch
 from data.dataset_helpers import generate_texts_labels
 from predict import predict
 
+from interpretability import explain
+
 print(f'running on {DEVICE}')
 
 
@@ -38,7 +40,7 @@ if __name__ == "__main__":
     else:
         layers = POS_LAYERS
 
-    ignore_first = False  # task == 'ner'
+    ignore_first = task == 'ner'
 
     # Load word embeddings
     word_to_embedding_dict = {}
@@ -79,13 +81,30 @@ if __name__ == "__main__":
 
     train(train_loader, test_loader, model, criterion, optimizer, f'{task}_{len(sys.argv)}', ignore_first)
 
+    # real_test_dataset = WordEmbedderTaggerDataset(presuf, chars, f"data/{task}/test", class_to_index,
+    #                                               train_dataset.word_to_index,
+    #                                               train_dataset.pre_to_index, train_dataset.suf_to_index,
+    #                                               train_dataset.char_to_index,
+    #                                               prob_replace_to_no_word=0.0)
+    #
+    # index_to_class = {v: k for k, v in class_to_index.items()}
+    #
+    # with open(f'{task}_{len(sys.argv)}.txt', 'w') as file:
+    #     file.write('\n'.join([index_to_class[p] for p in predict(real_test_dataset, model)]))
+    #
+    # input()
+
     texts = list(
         generate_texts_labels(f"data/{task}/test", train_dataset.word_to_index, train_dataset.pre_to_index,
                               train_dataset.suf_to_index, train_dataset.char_to_index, None, train_dataset.dont_include,
                               False, presuf, chars))
-    test_texts = torch.tensor(texts, dtype=torch.int).to(DEVICE)
+    # test_texts = torch.tensor(texts, dtype=torch.int).to(DEVICE)
 
     index_to_class = {v: k for k, v in class_to_index.items()}
 
     with open(f'{task}_{len(sys.argv)}.txt', 'w') as file:
-        file.write('\n'.join([index_to_class[p] for p in predict(test_texts, model)]))
+        file.write('\n'.join([index_to_class[p] for p in predict(texts, model)]))
+
+    if chars:
+        explain(model, list(train_dataset.pre_to_index.keys()) + list(train_dataset.suf_to_index.keys()),
+                train_dataset.char_to_index)

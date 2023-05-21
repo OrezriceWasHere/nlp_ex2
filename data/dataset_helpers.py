@@ -55,6 +55,9 @@ def generate_texts_labels(tagged_file, word_to_index, prefix_to_index, suffix_to
 
         for line in f:
 
+            if 'DOCSTART' in line:
+                continue
+
             # A sentence is ended
             if line == "\n":
                 for i in range(len(text_buffer) - (WINDOW - 1)):
@@ -90,10 +93,10 @@ def generate_texts_labels(tagged_file, word_to_index, prefix_to_index, suffix_to
             pre_buf.insert(current_index, prefix_to_index.get(word[:3]) or prefix_to_index[NO_WORD])
             suf_buf.insert(current_index, suffix_to_index.get(word[-3:]) or suffix_to_index[NO_WORD])
 
-            chars = [0] * MAX_CHARACTERS
+            chars = [word_to_index[NO_WORD]] * MAX_CHARACTERS
             for i, c in enumerate(word):
                 try:
-                    chars[i + (MAX_CHARACTERS - len(word)) // 2] = char_to_index[c]
+                    chars[i + (MAX_CHARACTERS - len(word)) // 2] = char_to_index.get(c) or char_to_index[NO_WORD]
                 except IndexError:
                     print(word)
                     input()

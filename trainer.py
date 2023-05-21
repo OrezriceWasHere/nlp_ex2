@@ -75,5 +75,7 @@ def train(train_loader, test_loader, model, criterion, optimizer, name, ignore_f
     plt.plot(loss_per_epoch)
     plt.savefig(name + '_loss.png')
 
+    plt.clf()
+
     plt.plot(accuracy_per_epoch)
     plt.savefig(name + '_accuracy.png')

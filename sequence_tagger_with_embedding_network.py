@@ -1,5 +1,6 @@
 import torch
 from hyper_parameters import *
+import math
 
 
 class SequenceTaggerWithEmbeddingNetwork(torch.nn.Module):
@@ -62,16 +63,18 @@ class WithCharacterEmbedding(SequenceTaggerWithEmbeddingNetwork):
     def __init__(self, characters_number, *args):
         super().__init__(*args)
         self.char_embedding = torch.nn.Embedding(characters_number, CHARACTER_EMBEDDING_SIZE)
-        self.conv = torch.nn.Sequential(torch.nn.Dropout(0.5), torch.nn.Conv2d(WINDOW, FILTERS_NUMBER, FILTERS_SIZE),
-                                        torch.nn.MaxPool2d(kernel_size=(MAX_CHARACTERS - (FILTERS_SIZE - 1), 1),
-                                                           stride=(MAX_CHARACTERS - (FILTERS_SIZE - 1), 1))
-                                        )
+        self.char_embedding.weight.data.uniform_(-math.sqrt(3 / CHARACTER_EMBEDDING_SIZE),
+                                                 math.sqrt(3 / CHARACTER_EMBEDDING_SIZE))
+        self.conv = torch.nn.Conv2d(WINDOW, FILTERS_NUMBER * WINDOW, (FILTER_SIZE, CHARACTER_EMBEDDING_SIZE)).to(DEVICE)
+        self.conv = torch.nn.Sequential(torch.nn.Dropout(0.5), self.conv)
+        self.pool = torch.nn.MaxPool1d(MAX_CHARACTERS - FILTER_SIZE + 1)
 
     def embed(self, words, characters):
+        return torch.cat((super().embed(words), self.embed_characters(characters)), 1)
+
+    def embed_characters(self, characters):
         embedded = self.char_embedding(characters)
         conved = self.conv(embedded)
-        reshaped = conved.view(conved.size(0), conved.size(1) * conved.size(2) * conved.size(3))
-        return torch.cat((super().embed(words), reshaped), 1)
-
-    def embed_characters(self, x):
-        self.char_embedding(x)
+        reshaped = conved.view(conved.size(0), conved.size(1), conved.size(2))
+        pooled = self.pool(reshaped)
+        return pooled.view(conved.size(0), conved.size(1))

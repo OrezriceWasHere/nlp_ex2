@@ -14,16 +14,16 @@ POS_CLASS_TO_INDEX = {'CC': 0, 'CD': 1, 'DT': 2, 'EX': 3, 'FW': 4, 'IN': 5, 'JJ'
                       'VBG': 28, 'VBN': 29, 'VBP': 30, 'VBZ': 31, 'WDT': 32, 'WP': 33, 'WP$': 34,
                       'WRB': 35}  # thanks to GPT for creating this dictionary!
 POS_LAYERS = [EMBEDDING_SIZE * WINDOW, 500, len(POS_CLASS_TO_INDEX)]
-EPOCHS = 150
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 64 if DEVICE == torch.device("cuda:0") else 8
 PROB_UNQ = 0.07
 DROPOUT = 0.3
-AUGMENTATION_COUNT = 1
+AUGMENTATION_COUNT = 3
+EPOCHS = 0#150 // AUGMENTATION_COUNT
 CHARACTER_EMBEDDING_SIZE = 30
 MAX_CHARACTERS = 15  # helps as padding for the CNN too!
 FILTERS_NUMBER = 30
-FILTERS_SIZE = 3
+FILTER_SIZE = 3
 
-CHAR_NER_LAYERS = [EMBEDDING_SIZE * WINDOW + (CHARACTER_EMBEDDING_SIZE - (FILTERS_SIZE - 1)) * FILTERS_NUMBER, 500,
+CHAR_NER_LAYERS = [EMBEDDING_SIZE * WINDOW + WINDOW * FILTERS_NUMBER, 500,
                    len(NER_CLASS_TO_INDEX)]
