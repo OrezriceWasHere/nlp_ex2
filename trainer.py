@@ -2,6 +2,7 @@ from tqdm import tqdm
 from hyper_parameters import *
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from matplotlib import pyplot as plt
+import torch
 
 
 def train(train_loader, test_loader, model, criterion, optimizer, name, epochs, ignore_first):
@@ -23,9 +24,7 @@ def train(train_loader, test_loader, model, criterion, optimizer, name, epochs, 
         for text, label in (pbar := tqdm(train_loader)):
             pbar.set_description(f"Training epoch {epoch}")
 
-            #input(":(")
             output = model(*text)
-            #input()
             loss = criterion(output, label)
             optimizer.zero_grad()
             loss.backward()
@@ -64,13 +63,7 @@ def train(train_loader, test_loader, model, criterion, optimizer, name, epochs, 
             len([0 for t, p in zip(truths, predictions) if t == p and t != 0]) / len([0 for t in truths if t != 0]))
         print(f'Test accuracy: {accuracy_per_epoch[-1]}')
 
-        # print(classification_report(truths, predictions, target_names=list(NER_CLASS_TO_INDEX.keys())))
-
-        # if epoch % 20 == 0:
-        #     matrix = confusion_matrix(truths, predictions)
-        #     cm_display = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=list(NER_CLASS_TO_INDEX.keys()))
-        #     cm_display.plot()
-        #     plt.show()
+        criterion = torch.nn.CrossEntropyLoss()
 
     plt.plot(loss_per_epoch)
     plt.savefig(name + '_loss.png')

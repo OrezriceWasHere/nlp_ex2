@@ -66,8 +66,8 @@ class WithCharacterEmbedding(SequenceTaggerWithEmbeddingNetwork):
         self.char_embedding = torch.nn.Embedding(characters_number, CHARACTER_EMBEDDING_SIZE)
         self.char_embedding.weight.data.uniform_(-math.sqrt(3 / CHARACTER_EMBEDDING_SIZE),
                                                  math.sqrt(3 / CHARACTER_EMBEDDING_SIZE))
-        self.conv = torch.nn.Conv3d(1, FILTERS_NUMBER, (1, FILTER_SIZE, CHARACTER_EMBEDDING_SIZE)).to(DEVICE)
-        self.conv = torch.nn.Sequential(torch.nn.Dropout(0.5), self.conv)
+        self.conv_ = torch.nn.Conv3d(1, FILTERS_NUMBER, (1, FILTER_SIZE, CHARACTER_EMBEDDING_SIZE)).to(DEVICE)
+        self.conv = torch.nn.Sequential(torch.nn.Dropout(0.2), self.conv_)
         self.pool = torch.nn.AdaptiveMaxPool1d(1)
 
     def embed(self, words, characters):

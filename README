@@ -1,4 +1,9 @@
-To run the files, simply run "python <filename>". When a part have to be solved for two tasks (ner, pos) supply as an argument the task name (ner/pos).
-Specifically, for "tagger1", supply the command line argument 'pre' as the second argument if you want to use pre embedding.
-Most of the additional files are used by most of the "main" files.
-Note there are python files in the "data" folder.
+To run the code:
+
+run "python tagger.py <task> <embedding> <embedding type>
+where task is either "ner" or "pos", embedding is either "pre" (for pre-trained embedding) or "new" (no pre-train), and embedding type is "simple" (for just word embeddings)
+"presuf" (with word+prefixes+sufixes embedding) or "chars" for word+char embedding.
+
+(we have just one main file)
+
+Note there are python files in the "data" folder as well.

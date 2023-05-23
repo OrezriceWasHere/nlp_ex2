@@ -1,6 +1,6 @@
 from data.word_embedder_tagger_dataset import WordEmbedderTaggerDataset
 from hyper_parameters import *
-from sequence_tagger_with_embedding_network import *
+from network import *
 from trainer import train
 import sys
 import torch
@@ -82,6 +82,10 @@ if __name__ == "__main__":
     model = model.to(DEVICE)
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters())
+
+    if task == 'ner' and chars:
+        criterion = torch.nn.CrossEntropyLoss(
+            torch.tensor([0.05, 0.225, 0.225, 0.225, 0.225]).to(DEVICE))  # don't panic! it will changed later!
 
     train(train_loader, test_loader, model, criterion, optimizer, f'{task}_{len(sys.argv)}', epochs, ignore_first)
 
