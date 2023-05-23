@@ -14,6 +14,8 @@ print(f'running on {DEVICE}')
 
 def create_index_to_embedding_dict(word_to_index, word_to_embedding) -> dict:
     index_to_embedding_dict = {}
+
+    index_to_embedding_dict[2] = word_to_embedding['UUUNKKK']
     for word, index in word_to_index.items():
         if word in word_to_embedding:
             index_to_embedding_dict[index] = word_to_embedding[word]
@@ -21,8 +23,8 @@ def create_index_to_embedding_dict(word_to_index, word_to_embedding) -> dict:
 
 
 if __name__ == "__main__":
-    presuf = False
-    chars = True
+    presuf = sys.argv[3] == 'presuf'
+    chars = sys.argv[3] == 'chars'
 
     task = sys.argv[1].lower()
 
@@ -30,6 +32,8 @@ if __name__ == "__main__":
     test_file_path = f"data/{task}/dev"
 
     class_to_index = NER_CLASS_TO_INDEX if task == 'ner' else POS_CLASS_TO_INDEX
+
+    epochs = EPOCHS if task == 'ner' else EPOCHS // 2
 
     if task == 'ner' and chars:
         layers = CHAR_NER_LAYERS
@@ -58,7 +62,7 @@ if __name__ == "__main__":
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
     index_to_embedding_dict = None
-    if len(sys.argv) >= 3:
+    if sys.argv[2] == 'pre':
         index_to_embedding_dict = create_index_to_embedding_dict(train_dataset.word_to_index, word_to_embedding_dict)
         print('with pre-trained embedding!')
     else:
@@ -79,20 +83,7 @@ if __name__ == "__main__":
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters())
 
-    train(train_loader, test_loader, model, criterion, optimizer, f'{task}_{len(sys.argv)}', ignore_first)
-
-    # real_test_dataset = WordEmbedderTaggerDataset(presuf, chars, f"data/{task}/test", class_to_index,
-    #                                               train_dataset.word_to_index,
-    #                                               train_dataset.pre_to_index, train_dataset.suf_to_index,
-    #                                               train_dataset.char_to_index,
-    #                                               prob_replace_to_no_word=0.0)
-    #
-    # index_to_class = {v: k for k, v in class_to_index.items()}
-    #
-    # with open(f'{task}_{len(sys.argv)}.txt', 'w') as file:
-    #     file.write('\n'.join([index_to_class[p] for p in predict(real_test_dataset, model)]))
-    #
-    # input()
+    train(train_loader, test_loader, model, criterion, optimizer, f'{task}_{len(sys.argv)}', epochs, ignore_first)
 
     texts = list(
         generate_texts_labels(f"data/{task}/test", train_dataset.word_to_index, train_dataset.pre_to_index,
@@ -103,7 +94,7 @@ if __name__ == "__main__":
     index_to_class = {v: k for k, v in class_to_index.items()}
 
     with open(f'{task}_{len(sys.argv)}.txt', 'w') as file:
-        file.write('\n'.join([index_to_class[p] for p in predict(texts, model)]))
+        file.write('\n'.join([index_to_class[p] for p in predict(texts, model, chars)]))
 
     if chars:
         explain(model, list(train_dataset.pre_to_index.keys()) + list(train_dataset.suf_to_index.keys()),

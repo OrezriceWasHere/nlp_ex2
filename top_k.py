@@ -2,13 +2,13 @@ import numpy as np
 import math
 
 
-def similarty(u, v) -> float:
+def similarity(u, v) -> float:
     return np.dot(u, v) / math.sqrt(np.dot(u, u) * np.dot(v, v))
 
 
 def most_similar(word, k) -> np.ndarray:
     word_vec = vec_to_word[word]
-    similarities = np.array([similarty(word_vec, vec) for vec in vecs])
+    similarities = np.array([similarity(word_vec, vec) for vec in vecs])
     return (np.argsort(similarities)[::-1][:k + 1])[1:]
 
 
@@ -25,7 +25,8 @@ if __name__ == "__main__":
         "office"
     ]
     for word in interesting_words:
+        word_vec = vec_to_word[word]
         print(f"Most similar words to {word}:")
         for similar_word in most_similar(word, 5):
-            print(words[similar_word])
+            print(f'{words[similar_word]} {similarity(word_vec, vec_to_word[words[similar_word]])}')
         print()

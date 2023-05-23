@@ -20,10 +20,11 @@ class SequenceTaggerWithEmbeddingNetwork(torch.nn.Module):
         if index_to_embedding_dict is None:
             return torch.nn.Embedding(distinct_words, embedding_size)
         else:
-            embedding_matrix = torch.zeros(distinct_words, embedding_size)
+            embedding_matrix = torch.tensor(
+                torch.nn.Embedding(distinct_words, embedding_size).weight)
             for index, embedding in index_to_embedding_dict.items():
                 embedding_matrix[index] = torch.tensor(embedding)
-            return torch.nn.Embedding.from_pretrained(embedding_matrix)
+            return torch.nn.Embedding.from_pretrained(embedding_matrix, freeze=False)
 
     def __prepare_network_layers(self, dropout, network_structure):
         inner = network_structure[1:-1]
@@ -65,16 +66,17 @@ class WithCharacterEmbedding(SequenceTaggerWithEmbeddingNetwork):
         self.char_embedding = torch.nn.Embedding(characters_number, CHARACTER_EMBEDDING_SIZE)
         self.char_embedding.weight.data.uniform_(-math.sqrt(3 / CHARACTER_EMBEDDING_SIZE),
                                                  math.sqrt(3 / CHARACTER_EMBEDDING_SIZE))
-        self.conv = torch.nn.Conv2d(WINDOW, FILTERS_NUMBER * WINDOW, (FILTER_SIZE, CHARACTER_EMBEDDING_SIZE)).to(DEVICE)
+        self.conv = torch.nn.Conv3d(1, FILTERS_NUMBER, (1, FILTER_SIZE, CHARACTER_EMBEDDING_SIZE)).to(DEVICE)
         self.conv = torch.nn.Sequential(torch.nn.Dropout(0.5), self.conv)
-        self.pool = torch.nn.MaxPool1d(MAX_CHARACTERS - FILTER_SIZE + 1)
+        self.pool = torch.nn.AdaptiveMaxPool1d(1)
 
     def embed(self, words, characters):
         return torch.cat((super().embed(words), self.embed_characters(characters)), 1)
 
     def embed_characters(self, characters):
         embedded = self.char_embedding(characters)
-        conved = self.conv(embedded)
-        reshaped = conved.view(conved.size(0), conved.size(1), conved.size(2))
+        reshaped = embedded.unsqueeze(1)
+        conved = self.conv(reshaped)
+        reshaped = conved.view(conved.size(0), conved.size(1) * conved.size(2), conved.size(3))
         pooled = self.pool(reshaped)
-        return pooled.view(conved.size(0), conved.size(1))
+        return pooled.view(pooled.size(0), pooled.size(1))

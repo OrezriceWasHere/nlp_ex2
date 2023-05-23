@@ -67,7 +67,7 @@ def generate_texts_labels(tagged_file, word_to_index, prefix_to_index, suffix_to
                               char_buf[i: i + WINDOW], label_buffer[i]
                     else:
                         if presuf:
-                            yield text_buffer[i:i + WINDOW], pre_buf, suf_buf
+                            yield text_buffer[i:i + WINDOW], pre_buf[i: i + WINDOW], suf_buf[i: i + WINDOW]
                         elif with_chars:
                             yield text_buffer[i:i + WINDOW], char_buf[i: i + WINDOW]
                         else:

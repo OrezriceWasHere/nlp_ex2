@@ -4,14 +4,14 @@ from sklearn.metrics import classification_report, confusion_matrix, ConfusionMa
 from matplotlib import pyplot as plt
 
 
-def train(train_loader, test_loader, model, criterion, optimizer, name, ignore_first=False):
+def train(train_loader, test_loader, model, criterion, optimizer, name, epochs, ignore_first):
     # Prepare training
 
     loss_per_epoch = []
     accuracy_per_epoch = []
 
     # Start training
-    for epoch in range(EPOCHS):
+    for epoch in range(epochs):
         predictions = []
         truths = []
         total_loss_train = 0

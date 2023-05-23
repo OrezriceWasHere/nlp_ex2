@@ -3,12 +3,12 @@ from hyper_parameters import *
 import torch
 
 
-def predict(test, model):
+def predict(test, model, with_chars):
     output = []
 
     for t in test:
-        if isinstance(t, list) or isinstance(t, tuple):
-            t = [torch.tensor(t_).to(DEVICE).unsqueeze(0) for t_ in t]
+        if with_chars:
+            t = [torch.tensor(t_).unsqueeze(0).to(DEVICE) for t_ in t]
             output.append(model(*t).argmax().item())
         else:
             output.append(model(torch.tensor(t).unsqueeze(0).to(DEVICE)).argmax().item())
