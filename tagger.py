@@ -9,42 +9,49 @@ from predict import predict
 
 from interpretability import explain
 
+import argparse
+
 print(f'running on {DEVICE}')
 
 
 def create_index_to_embedding_dict(word_to_index, word_to_embedding) -> dict:
     index_to_embedding_dict = {}
 
-    index_to_embedding_dict[2] = word_to_embedding['UUUNKKK']
+    index_to_embedding_dict[0] = word_to_embedding['UUUNKKK']
     for word, index in word_to_index.items():
         if word in word_to_embedding:
             index_to_embedding_dict[index] = word_to_embedding[word]
     return index_to_embedding_dict
 
 
-if __name__ == "__main__":
-    presuf = sys.argv[3] == 'presuf'
-    chars = sys.argv[3] == 'chars'
+def process_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('task', choices=['ner', 'pos'], help='Please put the files in data/<task> dir!')
+    parser.add_argument('model_filename')
+    parser.add_argument('option', choices=['a', 'b', 'c', 'd'])
 
-    task = sys.argv[1].lower()
+    args = parser.parse_args()
+    return args.task, args.model_filename, args.option
+
+
+def create_embedding(option, word_to_embedding, word_count, pre_count, suf_count, char_count):
+    regular = SimpleEmbedding(word_count, word_to_embedding)
+    presuf = PresufEmbedding(pre_count, suf_count)
+    char = CharEmbedding(char_count)
+    od = {'a': [regular], 'b': [char], 'c': [regular, presuf], 'd': [regular, char]}
+    return Embedding(od[option])
+
+
+if __name__ == "__main__":
+    task, model_filename, option = process_arguments()
 
     train_file_path = f"data/{task}/train"
     test_file_path = f"data/{task}/dev"
 
     class_to_index = NER_CLASS_TO_INDEX if task == 'ner' else POS_CLASS_TO_INDEX
 
-    epochs = EPOCHS if task == 'ner' else EPOCHS // 2
-
-    if task == 'ner' and chars:
-        layers = CHAR_NER_LAYERS
-    elif task == 'ner':
-        layers = NER_LAYERS
-    elif chars:
-        layers = CHAR_POS_LAYERS
-    else:
-        layers = POS_LAYERS
-
     ignore_first = task == 'ner'
+    output_length = len(NER_CLASS_TO_INDEX) if task == 'ner' else len(POS_CLASS_TO_INDEX)
 
     # Load word embeddings
     word_to_embedding_dict = {}
@@ -53,53 +60,39 @@ if __name__ == "__main__":
             word_to_embedding_dict[word.rstrip()] = [float(x) for x in embedding.rstrip().split(" ")]
 
     # Prepare dataset
-    train_dataset = WordEmbedderTaggerDataset(presuf, chars, train_file_path, class_to_index)
-    test_dataset = WordEmbedderTaggerDataset(presuf, chars, test_file_path, class_to_index, train_dataset.word_to_index,
+    train_dataset = WordEmbedderTaggerDataset(train_file_path, class_to_index)
+    test_dataset = WordEmbedderTaggerDataset(test_file_path, class_to_index, train_dataset.word_to_index,
                                              train_dataset.pre_to_index, train_dataset.suf_to_index,
                                              train_dataset.char_to_index,
                                              prob_replace_to_no_word=0.0)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
-    index_to_embedding_dict = None
-    if sys.argv[2] == 'pre':
-        index_to_embedding_dict = create_index_to_embedding_dict(train_dataset.word_to_index, word_to_embedding_dict)
-        print('with pre-trained embedding!')
-    else:
-        print('without pre-trained embedding!')
+    index_to_embedding_dict = create_index_to_embedding_dict(train_dataset.word_to_index, word_to_embedding_dict)
 
-    # Prepare model
-    if presuf:
-        model = WithPresufEmbedding(len(train_dataset.pre_to_index), len(train_dataset.suf_to_index),
-                                    len(train_dataset.word_to_index), layers, index_to_embedding_dict)
-    elif chars:
-        model = WithCharacterEmbedding(len(train_dataset.char_to_index), len(train_dataset.word_to_index), layers,
-                                       index_to_embedding_dict)
-    else:
-        model = SequenceTaggerWithEmbeddingNetwork(len(train_dataset.word_to_index), layers,
-                                                   index_to_embedding_dict)
+    model = Network(create_embedding(option, index_to_embedding_dict, len(train_dataset.word_to_index),
+                                     len(train_dataset.pre_to_index), len(train_dataset.suf_to_index),
+                                     len(train_dataset.char_to_index)), output_length)
 
     model = model.to(DEVICE)
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters())
 
-    if task == 'ner' and chars:
-        criterion = torch.nn.CrossEntropyLoss(
-            torch.tensor([0.05, 0.225, 0.225, 0.225, 0.225]).to(DEVICE))  # don't panic! it will changed later!
+    # if task == 'ner' and chars:
+    #     criterion = torch.nn.CrossEntropyLoss(
+    #         torch.tensor([0.05, 0.225, 0.225, 0.225, 0.225]).to(DEVICE))  # don't panic! it will changed later!
 
-    train(train_loader, test_loader, model, criterion, optimizer, f'{task}_{len(sys.argv)}', epochs, ignore_first)
+    train(train_dataset, test_dataset, model, criterion, optimizer, f'{task}_{len(sys.argv)}', EPOCHS, ignore_first)
 
-    texts = list(
-        generate_texts_labels(f"data/{task}/test", train_dataset.word_to_index, train_dataset.pre_to_index,
-                              train_dataset.suf_to_index, train_dataset.char_to_index, None, train_dataset.dont_include,
-                              False, presuf, chars))
-    # test_texts = torch.tensor(texts, dtype=torch.int).to(DEVICE)
-
-    index_to_class = {v: k for k, v in class_to_index.items()}
-
-    with open(f'{task}_{len(sys.argv)}.txt', 'w') as file:
-        file.write('\n'.join([index_to_class[p] for p in predict(texts, model, chars)]))
-
-    if chars:
-        explain(model, list(train_dataset.pre_to_index.keys()) + list(train_dataset.suf_to_index.keys()),
-                train_dataset.char_to_index)
+    # texts = list(
+    #     generate_texts_labels(f"data/{task}/test", train_dataset.word_to_index, train_dataset.pre_to_index,
+    #                           train_dataset.suf_to_index, train_dataset.char_to_index, None, train_dataset.dont_include,
+    #                           False, presuf, chars))
+    # # test_texts = torch.tensor(texts, dtype=torch.int).to(DEVICE)
+    #
+    # index_to_class = {v: k for k, v in class_to_index.items()}
+    #
+    # with open(f'{task}_{len(sys.argv)}.txt', 'w') as file:
+    #     file.write('\n'.join([index_to_class[p] for p in predict(texts, model, chars)]))
+    #
+    # if chars:
+    #     explain(model, list(train_dataset.pre_to_index.keys()) + list(train_dataset.suf_to_index.keys()),
+    #             train_dataset.char_to_index)

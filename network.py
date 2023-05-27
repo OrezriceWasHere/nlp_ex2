@@ -1,82 +1,88 @@
 import torch
 from hyper_parameters import *
-import math
 
 
-class SequenceTaggerWithEmbeddingNetwork(torch.nn.Module):
+class SimpleEmbedding(torch.nn.Module):
 
-    def __init__(self,
-                 count_distinct_words,
-                 network_structure,
-                 index_to_embedding=None
-                 ):
+    def __init__(self, words_count, index_to_embedding=None):
         super().__init__()
-        self.network_structure = network_structure
-        self.embedding = self.__create_embedding_layer(count_distinct_words, EMBEDDING_SIZE, index_to_embedding)
-        layers = self.__prepare_network_layers(DROPOUT, network_structure)
-        self.net = torch.nn.Sequential(*layers)
 
-    def __create_embedding_layer(self, distinct_words, embedding_size, index_to_embedding_dict):
-        if index_to_embedding_dict is None:
-            return torch.nn.Embedding(distinct_words, embedding_size)
+        if index_to_embedding is None:
+            self.embedding = torch.nn.Embedding(words_count, EMBEDDING_SIZE)
         else:
-            embedding_matrix = torch.tensor(
-                torch.nn.Embedding(distinct_words, embedding_size).weight)
-            for index, embedding in index_to_embedding_dict.items():
+            embedding_matrix = torch.nn.Embedding(words_count, EMBEDDING_SIZE).weight.clone().detach()
+            for index, embedding in index_to_embedding.items():
                 embedding_matrix[index] = torch.tensor(embedding)
-            return torch.nn.Embedding.from_pretrained(embedding_matrix, freeze=False)
+            self.embedding = torch.nn.Embedding.from_pretrained(embedding_matrix, freeze=False)
 
-    def __prepare_network_layers(self, dropout, network_structure):
-        inner = network_structure[1:-1]
+        self.embedding = self.embedding.to(DEVICE)
 
-        layers = [torch.nn.Dropout(dropout), torch.nn.Linear(network_structure[0], network_structure[1]),
-                  torch.nn.Tanh()]
+    def __len__(self):
+        return EMBEDDING_SIZE
 
-        for pre_index, post_index in zip(inner, inner[1:]):
-            layers.append(torch.nn.Dropout(dropout))
-            layers.append(torch.nn.Linear(pre_index, post_index))
-            layers.append(torch.nn.LeakyReLU())
+    def forward(self, words, *_):
+        input(words.shape)
+        return self.embedding(words)
 
-        layers.extend([torch.nn.Linear(network_structure[-2], network_structure[-1]), torch.nn.Softmax(dim=1)])
-        return layers
 
-    def embed(self, *x):
-        return self.embedding(*x).view(-1, WINDOW * EMBEDDING_SIZE)
+class PresufEmbedding(torch.nn.Module):
 
-    def forward(self, *x):
-        x = self.embed(*x)
+    def __init__(self, pre_count, suf_count):
+        super().__init__()
+
+        self.pre = torch.nn.Embedding(pre_count, EMBEDDING_SIZE).to(DEVICE)
+        self.suf = torch.nn.Embedding(suf_count, EMBEDDING_SIZE).to(DEVICE)
+
+    def __len__(self):
+        return EMBEDDING_SIZE * 2
+
+    def forward(self, _, pre, suf, *__):
+        return torch.cat(self.pre(pre), self.suf(suf))
+
+
+class CharEmbedding(torch.nn.Module):
+
+    def __init__(self, chars_count):
+        super().__init__()
+        self.chars_embedding = torch.nn.Embedding(chars_count, EMBEDDING_SIZE).to(DEVICE)
+        self.lstm = torch.nn.LSTM(CHARACTER_EMBEDDING_SIZE, CHAR_LSTM_HIDDEN_SIZE)
+
+    def __len__(self):
+        return CHAR_LSTM_HIDDEN_SIZE
+
+    def forward(self, *_, chars_s):
+        zeros = torch.zeros(CHAR_LSTM_HIDDEN_SIZE).to(DEVICE)
+        result = torch.zeros(len(chars_s), CHAR_LSTM_HIDDEN_SIZE)
+        for i, chars in enumerate(chars_s):
+            out, _ = self.lstm(chars, (zeros, zeros))
+            result[i] = out[-1, :]
+        return result
+
+
+class Embedding(torch.nn.Module):
+
+    def __init__(self, embeddings):
+        super().__init__()
+        self.embeddings = embeddings
+
+    def __len__(self):
+        return sum(len(e) for e in self.embeddings)
+
+    def forward(self, *args):
+        return torch.cat([e(*args) for e in self.embeddings])
+
+
+class Network(torch.nn.Module):
+
+    def __init__(self, embedding, output_length):
+        super().__init__()
+        self.embedding = embedding
+
+        bilstm = torch.nn.LSTM(len(embedding), LSTM_HIDDEN_SIZE, num_layers=2, bidirectional=True, dropout=DROPOUT)
+
+        self.net = torch.nn.Sequential(bilstm, torch.nn.Linear(LSTM_HIDDEN_SIZE, output_length), torch.nn.Softmax())
+
+    def forward(self, *args):
+        x = self.embedding(*args)
+        print(x.shape)
         return self.net(x)
-
-
-class WithPresufEmbedding(SequenceTaggerWithEmbeddingNetwork):
-    def __init__(self, pre, suf, *args):
-        super().__init__(*args)
-        self.pre_embedding = torch.nn.Embedding(pre, EMBEDDING_SIZE)
-        self.suf_embedding = torch.nn.Embedding(suf, EMBEDDING_SIZE)
-
-    def embed(self, x):
-        return super().embed(x[:, 0, :]) + \
-               self.pre_embedding(x[:, 1, :]).view(-1, WINDOW * EMBEDDING_SIZE) + \
-               self.suf_embedding(x[:, 2, :]).view(-1, WINDOW * EMBEDDING_SIZE)
-
-
-class WithCharacterEmbedding(SequenceTaggerWithEmbeddingNetwork):
-    def __init__(self, characters_number, *args):
-        super().__init__(*args)
-        self.char_embedding = torch.nn.Embedding(characters_number, CHARACTER_EMBEDDING_SIZE)
-        self.char_embedding.weight.data.uniform_(-math.sqrt(3 / CHARACTER_EMBEDDING_SIZE),
-                                                 math.sqrt(3 / CHARACTER_EMBEDDING_SIZE))
-        self.conv_ = torch.nn.Conv3d(1, FILTERS_NUMBER, (1, FILTER_SIZE, CHARACTER_EMBEDDING_SIZE)).to(DEVICE)
-        self.conv = torch.nn.Sequential(torch.nn.Dropout(0.2), self.conv_)
-        self.pool = torch.nn.AdaptiveMaxPool1d(1)
-
-    def embed(self, words, characters):
-        return torch.cat((super().embed(words), self.embed_characters(characters)), 1)
-
-    def embed_characters(self, characters):
-        embedded = self.char_embedding(characters)
-        reshaped = embedded.unsqueeze(1)
-        conved = self.conv(reshaped)
-        reshaped = conved.view(conved.size(0), conved.size(1) * conved.size(2), conved.size(3))
-        pooled = self.pool(reshaped)
-        return pooled.view(pooled.size(0), pooled.size(1))
