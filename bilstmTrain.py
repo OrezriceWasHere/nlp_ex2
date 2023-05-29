@@ -7,8 +7,6 @@ import torch
 from data.dataset_helpers import generate_texts_labels
 from predict import predict
 
-from interpretability import explain
-
 import argparse
 
 print(f'running on {DEVICE}')
@@ -78,9 +76,11 @@ if __name__ == "__main__":
 
     # if task == 'ner' and chars:
     #     criterion = torch.nn.CrossEntropyLoss(
-    #         torch.tensor([0.05, 0.225, 0.225, 0.225, 0.225]).to(DEVICE))  # don't panic! it will changed later!
+    #         torch.tensor([0.05, 0.225, 0.225, 0.225, 0.225]).to(DEVICE))  # don't panic! it will change later!
 
-    train(train_dataset, test_dataset, model, criterion, optimizer, f'{task}_{len(sys.argv)}', EPOCHS, ignore_first)
+    train(train_dataset, test_dataset, model, criterion, optimizer, f'{task}', EPOCHS, ignore_first)
+
+    torch.save(model.state_dict(), model_filename)
 
     # texts = list(
     #     generate_texts_labels(f"data/{task}/test", train_dataset.word_to_index, train_dataset.pre_to_index,
@@ -92,7 +92,3 @@ if __name__ == "__main__":
     #
     # with open(f'{task}_{len(sys.argv)}.txt', 'w') as file:
     #     file.write('\n'.join([index_to_class[p] for p in predict(texts, model, chars)]))
-    #
-    # if chars:
-    #     explain(model, list(train_dataset.pre_to_index.keys()) + list(train_dataset.suf_to_index.keys()),
-    #             train_dataset.char_to_index)

@@ -21,7 +21,6 @@ class SimpleEmbedding(torch.nn.Module):
         return EMBEDDING_SIZE
 
     def forward(self, words, *_):
-        input(words.shape)
         return self.embedding(words)
 
 
@@ -37,24 +36,24 @@ class PresufEmbedding(torch.nn.Module):
         return EMBEDDING_SIZE * 2
 
     def forward(self, _, pre, suf, *__):
-        return torch.cat(self.pre(pre), self.suf(suf))
+        return torch.cat([self.pre(pre), self.suf(suf)], dim=1)
 
 
 class CharEmbedding(torch.nn.Module):
 
     def __init__(self, chars_count):
         super().__init__()
-        self.chars_embedding = torch.nn.Embedding(chars_count, EMBEDDING_SIZE).to(DEVICE)
-        self.lstm = torch.nn.LSTM(CHARACTER_EMBEDDING_SIZE, CHAR_LSTM_HIDDEN_SIZE)
+        self.chars_embedding = torch.nn.Embedding(chars_count, CHARACTER_EMBEDDING_SIZE).to(DEVICE)
+        self.lstm = torch.nn.LSTM(CHARACTER_EMBEDDING_SIZE, CHAR_LSTM_HIDDEN_SIZE).to(DEVICE)
 
     def __len__(self):
         return CHAR_LSTM_HIDDEN_SIZE
 
-    def forward(self, *_, chars_s):
-        zeros = torch.zeros(CHAR_LSTM_HIDDEN_SIZE).to(DEVICE)
-        result = torch.zeros(len(chars_s), CHAR_LSTM_HIDDEN_SIZE)
+    def forward(self, _, __, ___, chars_s):
+        zeros = torch.zeros(1, CHAR_LSTM_HIDDEN_SIZE).to(DEVICE)
+        result = torch.zeros(len(chars_s), CHAR_LSTM_HIDDEN_SIZE).to(DEVICE)
         for i, chars in enumerate(chars_s):
-            out, _ = self.lstm(chars, (zeros, zeros))
+            out, _ = self.lstm(self.chars_embedding(chars), (zeros, zeros))
             result[i] = out[-1, :]
         return result
 
@@ -69,7 +68,7 @@ class Embedding(torch.nn.Module):
         return sum(len(e) for e in self.embeddings)
 
     def forward(self, *args):
-        return torch.cat([e(*args) for e in self.embeddings])
+        return torch.cat([e(*args) for e in self.embeddings], dim=1)
 
 
 class Network(torch.nn.Module):
@@ -78,11 +77,11 @@ class Network(torch.nn.Module):
         super().__init__()
         self.embedding = embedding
 
-        bilstm = torch.nn.LSTM(len(embedding), LSTM_HIDDEN_SIZE, num_layers=2, bidirectional=True, dropout=DROPOUT)
+        self.bilstm = torch.nn.LSTM(len(embedding), LSTM_HIDDEN_SIZE, num_layers=2, bidirectional=True, dropout=DROPOUT)
 
-        self.net = torch.nn.Sequential(bilstm, torch.nn.Linear(LSTM_HIDDEN_SIZE, output_length), torch.nn.Softmax())
+        self.classifier = torch.nn.Sequential(torch.nn.Linear(LSTM_HIDDEN_SIZE * 2, output_length), torch.nn.Softmax(0))
 
     def forward(self, *args):
         x = self.embedding(*args)
-        print(x.shape)
-        return self.net(x)
+        output, _ = self.bilstm(x)
+        return self.classifier(output)

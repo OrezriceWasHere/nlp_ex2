@@ -1,9 +1,4 @@
 To run the code:
 
-run "python tagger.py <task> <embedding> <embedding type>
-where task is either "ner" or "pos", embedding is either "pre" (for pre-trained embedding) or "new" (no pre-train), and embedding type is "simple" (for just word embeddings)
-"presuf" (with word+prefixes+sufixes embedding) or "chars" for word+char embedding.
-
-(we have just one main file)
-
-Note there are python files in the "data" folder as well.
+Put the folders in the 'data' folder (i.e. data/ner/...). Then run the files with ner/pos for the 'task' argument. The model file w.r.t. the current directory.
+The graphs will be created automatically, <task>_accuracy, <task>_loss for the train, and <task>.txt for the predictions.

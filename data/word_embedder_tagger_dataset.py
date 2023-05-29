@@ -68,8 +68,8 @@ class WordEmbedderTaggerDataset(torch.utils.data.Dataset):
                                                                   self.dont_include,
                                                                   True))
 
-        texts, prefixes, suffixes, labels = [], [], [], []
-        chars = []
+        self.texts, self.prefixes, self.suffixes, self.labels = [], [], [], []
+        self.chars = []
 
         for text, pre, suf, cha, label in texts_labels:
             for i in range(len(text)):
@@ -80,17 +80,11 @@ class WordEmbedderTaggerDataset(torch.utils.data.Dataset):
                     if torch.rand(1) < 0.15:
                         suf[i] = self.no_suf
 
-            texts.append(text)
-            prefixes.append(pre)
-            suffixes.append(suf)
-            labels.append(label)
-            chars.append(cha)
-
-        self.texts = torch.tensor(texts, dtype=torch.int).to(DEVICE)
-        self.prefixes = torch.tensor(prefixes, dtype=torch.int).to(DEVICE)
-        self.suffixes = torch.tensor(suffixes, dtype=torch.int).to(DEVICE)
-        self.chars = [(torch.tensor(s) for s in cs) for cs in chars]
-        self.labels = torch.tensor(labels, dtype=torch.long).to(DEVICE)
+            self.texts.append(torch.tensor(text, dtype=torch.int).to(DEVICE))
+            self.prefixes.append(torch.tensor(pre, dtype=torch.int).to(DEVICE))
+            self.suffixes.append(torch.tensor(suf, dtype=torch.int).to(DEVICE))
+            self.labels.append(torch.tensor(label, dtype=torch.long).to(DEVICE))
+            self.chars.append([torch.tensor(c, dtype=torch.int).to(DEVICE) for c in cha])
 
     def __len__(self):
         return len(self.labels)

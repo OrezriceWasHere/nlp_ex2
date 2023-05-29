@@ -52,6 +52,9 @@ def generate_texts_labels(tagged_file, word_to_index, prefix_to_index, suffix_to
 
             # A sentence is ended
             if line == "\n":
+                if len(text_buffer) == 0:
+                    continue
+
                 if tagged:
                     yield text_buffer, pre_buf, suf_buf, char_buf, label_buffer
                 else:

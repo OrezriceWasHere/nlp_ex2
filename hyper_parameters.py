@@ -14,10 +14,10 @@ POS_CLASS_TO_INDEX = {'CC': 0, 'CD': 1, 'DT': 2, 'EX': 3, 'FW': 4, 'IN': 5, 'JJ'
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 64 if DEVICE == torch.device("cuda:0") else 8
 PROB_UNQ = 0.07
-DROPOUT = 0.3
+DROPOUT = 0.1
 EPOCHS = 5
 CHARACTER_EMBEDDING_SIZE = 30
 
-CHAR_LSTM_HIDDEN_SIZE = 25
+CHAR_LSTM_HIDDEN_SIZE = 35
 
 LSTM_HIDDEN_SIZE = 50
