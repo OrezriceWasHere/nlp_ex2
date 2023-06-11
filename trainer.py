@@ -33,11 +33,11 @@ def eval(test_loader, model, criterion, ignore_first):
     return loss, accuracy
 
 
-def train(train_loader, test_loader, model, criterion, optimizer, name, epochs, ignore_first):
+def train(train_loader, test_loader, model, criterion, optimizer, epochs, ignore_first):
     # Prepare training
 
-    loss_per_epoch = []
-    accuracy_per_epoch = []
+    loss_per = []
+    accuracy_per = []
 
     counter = 0
 
@@ -68,8 +68,8 @@ def train(train_loader, test_loader, model, criterion, optimizer, name, epochs, 
             if counter % 500 == 0:
                 loss, accuracy = eval(test_loader, model, criterion, ignore_first)
 
-                loss_per_epoch.append(loss)
-                accuracy_per_epoch.append(accuracy)
+                loss_per.append(loss)
+                accuracy_per.append(accuracy)
 
             counter += 1
 
@@ -82,10 +82,4 @@ def train(train_loader, test_loader, model, criterion, optimizer, name, epochs, 
 
         # criterion = torch.nn.CrossEntropyLoss()
 
-    plt.plot(loss_per_epoch)
-    plt.savefig(name + '_loss.png')
-
-    plt.clf()
-
-    plt.plot(accuracy_per_epoch)
-    plt.savefig(name + '_accuracy.png')
+    return loss_per, accuracy_per

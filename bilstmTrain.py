@@ -40,9 +40,7 @@ def create_embedding(option, word_to_embedding, word_count, pre_count, suf_count
     return Embedding(od[option])
 
 
-if __name__ == "__main__":
-    task, model_filename, option = process_arguments()
-
+def do_it(task, option):
     train_file_path = f"data/{task}/train"
     test_file_path = f"data/{task}/dev"
 
@@ -74,21 +72,13 @@ if __name__ == "__main__":
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters())
 
-    # if task == 'ner' and chars:
-    #     criterion = torch.nn.CrossEntropyLoss(
-    #         torch.tensor([0.05, 0.225, 0.225, 0.225, 0.225]).to(DEVICE))  # don't panic! it will change later!
+    return model, train(train_dataset, test_dataset, model, criterion, optimizer, EPOCHS, ignore_first)
 
-    train(train_dataset, test_dataset, model, criterion, optimizer, f'{task}', EPOCHS, ignore_first)
 
-    torch.save(model.state_dict(), model_filename)
+def main():
+    task, model_filename, option =process_arguments()
 
-    # texts = list(
-    #     generate_texts_labels(f"data/{task}/test", train_dataset.word_to_index, train_dataset.pre_to_index,
-    #                           train_dataset.suf_to_index, train_dataset.char_to_index, None, train_dataset.dont_include,
-    #                           False, presuf, chars))
-    # # test_texts = torch.tensor(texts, dtype=torch.int).to(DEVICE)
-    #
-    # index_to_class = {v: k for k, v in class_to_index.items()}
-    #
-    # with open(f'{task}_{len(sys.argv)}.txt', 'w') as file:
-    #     file.write('\n'.join([index_to_class[p] for p in predict(texts, model, chars)]))
+    torch.save(do_it(task, option)[0], model_filename)
+
+if __name__ == "__main__":
+    main()
